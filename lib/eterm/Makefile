@@ -2,15 +2,19 @@ CAMLP4=
 OCAMLC_OPTS=
 OCAMLOPT_OPTS=
 
-LIB_MODULES=
+LIB_MODULES=eterm.ml
 NON_LIB_MODULES=
 
-BYTE_TARGETS=
-NATIVE_TARGETS=
+BYTE_TARGETS=eterm.cma
+NATIVE_TARGETS=eterm.cmxa
 
-.PHONY: all test
+.PHONY: all install test
 
 all: native-code byte-code
+
+install: all
+	ocamlfind install eterm META eterm.cmxa eterm.cma eterm.a *.cmx *.cmi *.mli
+
 
 test:
 

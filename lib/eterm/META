@@ -1,0 +1,6 @@
+name="eterm"
+version="0.0.0"
+description="Ocaml library for interpreting Erlang's external foramt"
+requires="bitstring,bitstring.syntax"
+archive(byte)="eterm.cma"
+archive(native)="eterm.cmxa"
