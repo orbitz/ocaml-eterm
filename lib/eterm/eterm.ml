@@ -18,8 +18,9 @@ type t =
   | Nil
 
 
-let of_binary s = failwith "nyi"
+let of_bytes bs =
+  failwith "nyi"
 
-let to_binary t = failwith "nyi"
+let to_bytes t =
+  failwith "nyi"
 
-let to_string t = failwith "nyi"

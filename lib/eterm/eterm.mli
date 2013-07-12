@@ -18,10 +18,5 @@ type t =
   | Nil
 
 
-val of_binary : string -> t
-val to_binary : t -> string
-
-val to_string : t -> string
-
-val of_bytes  : string -> t
-val to_bytes  : t -> string
+val of_bytes : string -> t
+val to_bytes : t -> string
