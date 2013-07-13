@@ -1,9 +1,9 @@
 type t =
   | Small_int     of int
-  | Int           of int
-  | Float         of float
+  | Int           of int32
+  | Float         of string
   | Atom          of string
-  | Ref           of string
+  | Ref           of (t * int32 * int)
   | Port          of string
   | Pid           of string
   | Small_tuple   of t list
@@ -17,6 +17,8 @@ type t =
   | Small_atom    of string
   | Nil
 
+val of_bitstring : Bitstring.bitstring -> (t option * Bitstring.bitstring)
+val to_bitstring : t -> Bitstring.bitstring
 
-val of_bytes : string -> t
-val to_bytes : t -> string
+val of_bytes     : string -> (t option * Bitstring.bitstring)
+val to_bytes     : t -> string
