@@ -13,7 +13,7 @@ type t =
   | Binary        of string
   | Small_big_int of string
   | Large_big_int of string
-  | New_ref       of string
+  | New_ref       of (t * int32 * int)
   | Small_atom    of string
   | Nil
 
@@ -22,3 +22,5 @@ val to_bitstring : t -> Bitstring.bitstring
 
 val of_bytes     : string -> (t option * Bitstring.bitstring)
 val to_bytes     : t -> string
+
+val compare      : t -> t -> int
