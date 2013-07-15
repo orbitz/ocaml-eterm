@@ -11,8 +11,8 @@ type t =
   | String        of string
   | List          of t list
   | Binary        of string
-  | Small_big_int of string
-  | Large_big_int of string
+  | Small_big_int of Num.num
+  | Large_big_int of Num.num
   | New_ref       of (t * int32 * int)
   | Small_atom    of string
   | Nil

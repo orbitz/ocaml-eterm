@@ -1,5 +1,5 @@
 CAMLP4=
-OCAMLC_OPTS=-package bitstring,bitstring.syntax -syntax camlp4o
+OCAMLC_OPTS=-package num,bitstring,bitstring.syntax -syntax camlp4o
 OCAMLOPT_OPTS=$(OCAMLC_OPTS)
 
 LIB_MODULES=eterm.ml

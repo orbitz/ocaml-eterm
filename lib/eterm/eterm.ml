@@ -11,8 +11,8 @@ type t =
   | String        of string
   | List          of t list
   | Binary        of string
-  | Small_big_int of string
-  | Large_big_int of string
+  | Small_big_int of Num.num
+  | Large_big_int of Num.num
   | New_ref       of (t * int32 * int)
   | Small_atom    of string
   | Nil
@@ -23,6 +23,18 @@ let cut_at_null s =
       s
     | n ->
       String.sub s 0 n
+
+let convert_num num =
+  let b = Num.num_of_int 256 in
+  let rec convert_num' n = function
+    | i when i < String.length num ->
+      convert_num'
+	Num.(n +/ (num_of_int (Char.code num.[i]) */ (b **/ num_of_int i)))
+	(i + 1)
+    | _ ->
+      n
+  in
+  convert_num' (Num.num_of_int 0) 0
 
 let rec parse_data bs =
   bitmatch bs with
@@ -105,11 +117,25 @@ let rec parse_data bs =
 	  (None, rest)
     )
     | { 109    : 8
-      ; len    : 4 * 8   : bigendian
+      ; len    : 4 * 8                : bigendian
       ; string : Int32.to_int len * 8 : string
-      ; rest   : -1      : bitstring
+      ; rest   : -1                   : bitstring
       } ->
       (Some (Binary string), rest)
+    | { 110  : 8
+      ; len  : 8
+      ; sign : 8
+      ; num  : len * 8 : string
+      ; rest : -1      : bitstring
+      } ->
+      let big_num = convert_num num in
+      let big_num =
+	if sign = 0 then
+	  big_num
+	else
+	  Num.minus_num big_num
+      in
+      (Some (Small_big_int big_num), rest)
     | { _ } ->
       (None, bs)
 and consume_n n bs =
@@ -146,7 +172,11 @@ let to_bytes t =
 
 let promote = function
   | Small_int n ->
-    Int (Int32.of_int n)
+    Large_big_int (Num.num_of_int n)
+  | Int n ->
+    Large_big_int (Num.num_of_big_int (Big_int.big_int_of_int32 n))
+  | Small_big_int n ->
+    Large_big_int n
   | Small_tuple t ->
     Large_tuple t
   | Small_big_int n ->
@@ -158,28 +188,28 @@ let promote = function
   | t ->
     t
 
+let polymorphic_compare = compare
+
 let rec compare t1 t2 =
   match (promote t1, promote t2) with
     (* Numbers *)
-    | (Int n1, Int n2) ->
-      Int32.compare n1 n2
-    | (Int n1, Float n2) ->
-      Int32.compare n1 (Int32.of_float (float_of_string n2))
-    | (Float n1, Int n2) ->
-      Int32.compare (Int32.of_float (float_of_string n1)) n2
+    | (Large_big_int n1, Large_big_int n2) ->
+      Num.compare_num n1 n2
+    | (Large_big_int n1, Float n2) ->
+      let int64   = Int64.of_float (float_of_string n2) in
+      let big_int = Big_int.big_int_of_int64 int64 in
+      let num     = Num.num_of_big_int big_int in
+      Num.compare_num n1 num
+    | (Float n1, Large_big_int n2) ->
+      let int64   = Int64.of_float (float_of_string n1) in
+      let big_int = Big_int.big_int_of_int64 int64 in
+      let num     = Num.num_of_big_int big_int in
+      Num.compare_num num n2
     | (Float n1, Float n2) ->
-      String.compare n1 n2
-    | (Large_big_int _, Large_big_int _)
-    | (Large_big_int _, Float _)
-    | (Large_big_int _, Int _)
-    | (Float _, Large_big_int _)
-    | (Int _, Large_big_int _) ->
-      failwith "nyi"
-    | (Int _, _)
+      polymorphic_compare (float_of_string n1) (float_of_string n2)
     | (Float _, _)
     | (Large_big_int _, _)->
       -1
-    | (_, Int _)
     | (_, Float _)
     | (_, Large_big_int _) ->
       1
