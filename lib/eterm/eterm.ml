@@ -88,6 +88,28 @@ let rec parse_data bs =
       ; rest  : -1 : bitstring
       } ->
       (Some Nil, rest)
+    | { 107    : 8
+      ; len    : 2 * 8   : bigendian
+      ; string : len * 8 : string
+      ; rest   : -1      : bitstring
+      } ->
+      (Some (String string), rest)
+    | { 108   : 8
+      ; len   : 4 * 8   : bigendian
+      ; rest  : -1      : bitstring
+      } -> (
+      match consume_n len rest with
+	| (Some elems, rest) ->
+	  (Some (List elems), rest)
+	| (None, _) ->
+	  (None, rest)
+    )
+    | { 109    : 8
+      ; len    : 4 * 8   : bigendian
+      ; string : Int32.to_int len * 8 : string
+      ; rest   : -1      : bitstring
+      } ->
+      (Some (Binary string), rest)
     | { _ } ->
       (None, bs)
 and consume_n n bs =
@@ -215,6 +237,11 @@ let rec compare t1 t2 =
     (* List *)
     | (List l1, List l2) ->
       compare_seq l1 l2
+    | (String s1, String s2) ->
+      String.compare s1 s2
+    | (String _, List _)
+    | (List _, String _) ->
+      failwith "nyi"
     | (List _, _) ->
       -1
     | (_, List _) ->

@@ -45,6 +45,21 @@ let lgt1       = { bytes = "\131i\000\000\001\000a\001a\002a\003a\004a\005a\006a
 		 ; res   = Eterm.Large_tuple (List.map (fun i -> Eterm.Small_int i) (seq 1 256))
 		 ; msg   = "Large tuple failed"
 		 }
+let string1    = { bytes = "\131k\000\005hello"
+		 ; res   = Eterm.String "hello"
+		 ; msg   = "String failed"
+		 }
+let list1      = { bytes = "\131l\000\000\000\003b\000\000SIb\000\000\t\017b\000\000\001Aj"
+		 ; res   = Eterm.List [ Eterm.Int (Int32.of_int 21321)
+				      ; Eterm.Int (Int32.of_int 2321)
+				      ; Eterm.Int (Int32.of_int 321)
+				      ]
+		 ; msg   = "List failed"
+		 }
+let binary1    = { bytes = "\131m\000\000\000\005hello"
+		 ; res   = Eterm.Binary "hello"
+		 ; msg   = "Binary failed"
+		 }
 
 let test_of_bytes test _ =
   match Eterm.of_bytes test.bytes with
@@ -65,6 +80,9 @@ let suite = "Eterm Test" >:::
   ; "Nil"         >:: (test_of_bytes nil1)
   ; "Small Tuple" >:: (test_of_bytes smt1)
   ; "Large Tuple" >:: (test_of_bytes lgt1)
+  ; "String"      >:: (test_of_bytes string1)
+  ; "List"        >:: (test_of_bytes list1)
+  ; "Binary"      >:: (test_of_bytes binary1)
   ]
 
 let _ = run_test_tt_main suite
