@@ -23,4 +23,7 @@ val to_bitstring : t -> Bitstring.bitstring
 val of_bytes     : string -> (t option * Bitstring.bitstring)
 val to_bytes     : t -> string
 
+val of_string    : string -> t option
+val to_string    : t -> string
+
 val compare      : t -> t -> int

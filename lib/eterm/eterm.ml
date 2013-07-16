@@ -170,6 +170,103 @@ let of_bytes b =
 let to_bytes t =
   failwith "nyi"
 
+let of_string s =
+  failwith "nyi"
+
+let join_str ~sep =
+  let rec join_str' acc = function
+  | [] ->
+    acc
+  | [x] ->
+    acc ^ x
+  | x::xs ->
+    join_str' (acc ^ x ^ sep) xs
+  in
+  join_str' ""
+
+let list_of_string s =
+  let rec list_of_string' l = function
+    | i when i < String.length s ->
+      (s.[i])::l
+    | _ ->
+      List.rev l
+  in
+  list_of_string' [] 0
+
+let join_binary b =
+  join_str
+    ~sep:","
+    (List.map
+       (fun c -> string_of_int (Char.code c))
+       (list_of_string b))
+
+let rec is_proper = function
+  | [] ->
+    true
+  | [Nil] ->
+    true
+  | [_] ->
+    false
+  | _::xs ->
+    is_proper xs
+
+let remove_tail =
+  let rec remove_tail' acc = function
+    | [] ->
+      None
+    | [x] ->
+      Some (List.rev acc, x)
+    | x::xs ->
+      remove_tail' (x::acc) xs
+  in
+  remove_tail' []
+
+let rec to_string = function
+  | Small_int n ->
+    string_of_int n
+  | Int n ->
+    Int32.to_string n
+  | Float n ->
+    n
+  | Atom atom
+  | Small_atom atom ->
+    atom
+  | Small_tuple tuple
+  | Large_tuple tuple ->
+    "{" ^ join_tuple tuple ^ "}"
+  | String s ->
+    "\"" ^ s ^ "\""
+  | List l ->
+    "[" ^ join_list l ^ "]"
+  | Binary b ->
+    "<<" ^ join_binary b ^ ">>"
+  | Small_big_int n
+  | Large_big_int n ->
+    Num.string_of_num n
+  | Nil ->
+    "[]"
+  | _ ->
+    failwith "nyi"
+and join_tuple t =
+  join_str ~sep:"," (List.map to_string t)
+and join_list l =
+  if is_proper l then
+    join_proper_list l
+  else
+    join_improper_list l
+and join_proper_list l =
+  match remove_tail l with
+    | Some (l, _) ->
+      join_str ~sep:"," (List.map to_string l)
+    | None ->
+      ""
+and join_improper_list l =
+  match remove_tail l with
+    | Some (l, tail) ->
+      join_str ~sep:"," (List.map to_string l) ^ "|" ^ to_string tail
+    | None ->
+      ""
+
 let promote = function
   | Small_int n ->
     Large_big_int (Num.num_of_int n)
@@ -179,8 +276,6 @@ let promote = function
     Large_big_int n
   | Small_tuple t ->
     Large_tuple t
-  | Small_big_int n ->
-    Large_big_int n
   | Small_atom a ->
     Atom a
   | Ref r ->
