@@ -17,6 +17,42 @@ type t =
   | Small_atom    of string
   | Nil
 
+module Indent = struct
+  type t = { indent    : int list
+	   ; max_width : int
+	   ; width     : int
+	   ; s         : string
+	   }
+
+  let create () = { indent = [0]; max_width = 40; width = 0; s = "" }
+
+  let push_indent t = { t with indent = t.width::t.indent }
+  let pop_indent = function
+    | { indent = [] } as t ->
+      t
+    | { indent = x::xs } as t ->
+      { t with indent = xs }
+
+  let get_indent = function
+    | { indent = [] } ->
+      failwith "get_indent"
+    | { indent = x::_ } ->
+      x
+
+  let add_string s t =
+    let s_len = String.length s in
+    if s_len + t.width < t.max_width then
+      { t with s = t.s ^ s; width = t.width + s_len }
+    else
+      let indent = String.make (get_indent t) ' ' in
+      let s'     = indent ^ s in
+      { t with s = t.s ^ "\n" ^ s'; width = String.length s' }
+
+  let get_string t = t.s
+end
+
+let (|>) d f = f d
+
 let cut_at_null s =
   match String.index s '\000' with
     | -1 ->
@@ -221,51 +257,91 @@ let remove_tail =
   in
   remove_tail' []
 
-let rec to_string = function
-  | Small_int n ->
-    string_of_int n
-  | Int n ->
-    Int32.to_string n
-  | Float n ->
-    n
-  | Atom atom
-  | Small_atom atom ->
-    atom
-  | Small_tuple tuple
-  | Large_tuple tuple ->
-    "{" ^ join_tuple tuple ^ "}"
-  | String s ->
-    "\"" ^ s ^ "\""
-  | List l ->
-    "[" ^ join_list l ^ "]"
-  | Binary b ->
-    "<<" ^ join_binary b ^ ">>"
-  | Small_big_int n
-  | Large_big_int n ->
-    Num.string_of_num n
-  | Nil ->
-    "[]"
-  | _ ->
-    failwith "nyi"
-and join_tuple t =
-  join_str ~sep:"," (List.map to_string t)
-and join_list l =
-  if is_proper l then
-    join_proper_list l
-  else
-    join_improper_list l
-and join_proper_list l =
-  match remove_tail l with
-    | Some (l, _) ->
-      join_str ~sep:"," (List.map to_string l)
-    | None ->
-      ""
-and join_improper_list l =
-  match remove_tail l with
-    | Some (l, tail) ->
-      join_str ~sep:"," (List.map to_string l) ^ "|" ^ to_string tail
-    | None ->
-      ""
+let to_string_pp t =
+  let rec to_string_pp' indent = function
+    | Small_int n ->
+      Indent.add_string (string_of_int n) indent
+    | Int n ->
+      Indent.add_string (Int32.to_string n) indent
+    | Float n ->
+      Indent.add_string n indent
+    | Atom atom
+    | Small_atom atom ->
+      Indent.add_string atom indent
+    | Small_tuple tuple
+    | Large_tuple tuple ->
+      indent |>
+	  Indent.add_string "{" |>
+	      Indent.push_indent |>
+		  join_tuple tuple |>
+		      Indent.add_string "}"  |>
+			  Indent.pop_indent
+    | String s ->
+      Indent.add_string ("\"" ^ s ^ "\"") indent
+    | List l ->
+      indent |>
+	  Indent.add_string "[" |>
+	      Indent.push_indent |>
+		  join_list l |>
+		      Indent.add_string "]"  |>
+			  Indent.pop_indent
+    | Binary b ->
+      indent |>
+	  Indent.add_string "<<" |>
+	      Indent.push_indent |>
+		  join_binary b |>
+		      Indent.add_string ">>"  |>
+			  Indent.pop_indent
+    | Small_big_int n
+    | Large_big_int n ->
+      Indent.add_string (Num.string_of_num n) indent
+    | Nil ->
+      Indent.add_string "[]" indent
+    | _ ->
+      failwith "nyi"
+  and join_tuple tuple indent =
+    join ~sep:"," indent tuple
+  and join_list l indent =
+    if is_proper l then
+      join_proper_list l indent
+    else
+      join_improper_list l indent
+  and join_proper_list l indent =
+    match remove_tail l with
+      | Some (l, _) ->
+	join ~sep:"," indent l
+      | None ->
+	Indent.add_string "" indent
+  and join_improper_list l indent =
+    match remove_tail l with
+      | Some (l, tail) ->
+	join ~sep:"," indent l |>
+	    Indent.add_string "|" |>
+		(fun indent -> to_string_pp' indent tail)
+      | None ->
+	Indent.add_string "" indent
+  and join_binary b indent =
+    let b =
+      List.map
+	(fun c -> Small_int (Char.code c))
+	(list_of_string b)
+    in
+    join ~sep:"," indent b
+  and join ~sep indent = function
+    | [] ->
+      Indent.add_string "" indent
+    | [x] ->
+      to_string_pp' indent x
+    | x::xs ->
+      let indent =
+	to_string_pp' indent x |>
+	    Indent.add_string sep
+      in
+      join ~sep indent xs
+  in
+  Indent.get_string (to_string_pp' (Indent.create ()) t)
+
+let to_string = to_string_pp
 
 let promote = function
   | Small_int n ->

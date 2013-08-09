@@ -26,4 +26,6 @@ val to_bytes     : t -> string
 val of_string    : string -> t option
 val to_string    : t -> string
 
+val to_string_pp : t -> string
+
 val compare      : t -> t -> int
