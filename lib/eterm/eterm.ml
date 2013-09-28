@@ -1,20 +1,13 @@
 type t =
-  | Small_int     of int
-  | Int           of int32
-  | Float         of string
-  | Atom          of string
-  | Ref           of (t * int32 * int)
-  | Port          of string
-  | Pid           of string
-  | Small_tuple   of t list
-  | Large_tuple   of t list
-  | String        of string
-  | List          of t list
-  | Binary        of string
-  | Small_big_int of Num.num
-  | Large_big_int of Num.num
-  | New_ref       of (t * int32 * int)
-  | Small_atom    of string
+  | Small_int of int
+  | Int       of int32
+  | Float     of float
+  | Atom      of string
+  | Tuple     of t list
+  | String    of string
+  | List      of t list
+  | Binary    of string
+  | Big_int   of Num.num
   | Nil
 
 module Indent = struct
@@ -24,7 +17,8 @@ module Indent = struct
 	   ; s         : string
 	   }
 
-  let create () = { indent = [0]; max_width = 40; width = 0; s = "" }
+  let create ~max_width () =
+    { indent = [0]; max_width; width = 0; s = "" }
 
   let push_indent t = { t with indent = t.width::t.indent }
   let pop_indent = function
@@ -50,8 +44,6 @@ module Indent = struct
 
   let get_string t = t.s
 end
-
-let (|>) d f = f d
 
 let cut_at_null s =
   match String.index s '\000' with
@@ -88,7 +80,7 @@ let rec parse_data bs =
       ; float : 31 * 8 : string
       ; rest  : -1     : bitstring
       } ->
-      (Some (Float (cut_at_null float)), rest)
+      (Some (Float (float_of_string (cut_at_null float))), rest)
     | { 100  : 8
       ; len  : 2 * 8   : bigendian
       ; atom : len * 8 : string
@@ -107,7 +99,8 @@ let rec parse_data bs =
 	      ; creation : 1 * 8
 	      ; rest     : -1 : bitstring
 	      } ->
-	      (Some (Ref (node, id, creation)), rest)
+	      (* (Some (Ref (node, id, creation)), rest) *)
+	      failwith "nyi"
 	    | { _ } ->
 	      (None, rest)
 	)
@@ -118,7 +111,7 @@ let rec parse_data bs =
       } -> (
       match consume_n (Int32.of_int nelems) rest with
 	| (Some elems, rest) ->
-	  (Some (Small_tuple elems), rest)
+	  (Some (Tuple elems), rest)
 	| (None, rest) ->
 	  (None, rest)
     )
@@ -128,7 +121,7 @@ let rec parse_data bs =
       } -> (
       match consume_n nelems rest with
 	| (Some elems, rest) ->
-	  (Some (Large_tuple elems), rest)
+	  (Some (Tuple elems), rest)
 	| (None, rest) ->
 	  (None, rest)
     )
@@ -171,7 +164,7 @@ let rec parse_data bs =
 	else
 	  Num.minus_num big_num
       in
-      (Some (Small_big_int big_num), rest)
+      (Some (Big_int big_num), rest)
     | { _ } ->
       (None, bs)
 and consume_n n bs =
@@ -257,19 +250,17 @@ let remove_tail =
   in
   remove_tail' []
 
-let to_string_pp t =
+let to_string_pp ?(max_width = 40) t =
   let rec to_string_pp' indent = function
     | Small_int n ->
       Indent.add_string (string_of_int n) indent
     | Int n ->
       Indent.add_string (Int32.to_string n) indent
     | Float n ->
-      Indent.add_string n indent
-    | Atom atom
-    | Small_atom atom ->
+      Indent.add_string (string_of_float n) indent
+    | Atom atom ->
       Indent.add_string atom indent
-    | Small_tuple tuple
-    | Large_tuple tuple ->
+    | Tuple tuple ->
       indent |>
 	  Indent.add_string "{" |>
 	      Indent.push_indent |>
@@ -292,13 +283,10 @@ let to_string_pp t =
 		  join_binary b |>
 		      Indent.add_string ">>"  |>
 			  Indent.pop_indent
-    | Small_big_int n
-    | Large_big_int n ->
+    | Big_int n ->
       Indent.add_string (Num.string_of_num n) indent
     | Nil ->
       Indent.add_string "[]" indent
-    | _ ->
-      failwith "nyi"
   and join_tuple tuple indent =
     join ~sep:"," indent tuple
   and join_list l indent =
@@ -339,50 +327,49 @@ let to_string_pp t =
       in
       join ~sep indent xs
   in
-  Indent.get_string (to_string_pp' (Indent.create ()) t)
+  Indent.get_string (to_string_pp' (Indent.create ~max_width ()) t)
 
-let to_string = to_string_pp
-
-let promote = function
-  | Small_int n ->
-    Large_big_int (Num.num_of_int n)
-  | Int n ->
-    Large_big_int (Num.num_of_big_int (Big_int.big_int_of_int32 n))
-  | Small_big_int n ->
-    Large_big_int n
-  | Small_tuple t ->
-    Large_tuple t
-  | Small_atom a ->
-    Atom a
-  | Ref r ->
-    New_ref r
-  | t ->
-    t
+let to_string = to_string_pp ~max_width:100000
 
 let polymorphic_compare = compare
 
+let rec compare_seq s1 s2 =
+  match (s1, s2) with
+    | ([], []) ->
+      0
+    | ([], _) ->
+      -1
+    | (_, []) ->
+      1
+    | (s1::ss1, s2::ss2) ->
+      let c = compare s1 s2 in
+      if c = 0 then
+	compare_seq ss1 ss2
+      else
+	c
+
 let rec compare t1 t2 =
-  match (promote t1, promote t2) with
+  match (t1, t2) with
     (* Numbers *)
-    | (Large_big_int n1, Large_big_int n2) ->
+    | (Big_int n1, Big_int n2) ->
       Num.compare_num n1 n2
-    | (Large_big_int n1, Float n2) ->
-      let int64   = Int64.of_float (float_of_string n2) in
+    | (Big_int n1, Float n2) ->
+      let int64   = Int64.of_float n2 in
       let big_int = Big_int.big_int_of_int64 int64 in
       let num     = Num.num_of_big_int big_int in
       Num.compare_num n1 num
-    | (Float n1, Large_big_int n2) ->
-      let int64   = Int64.of_float (float_of_string n1) in
+    | (Float n1, Big_int n2) ->
+      let int64   = Int64.of_float n1 in
       let big_int = Big_int.big_int_of_int64 int64 in
       let num     = Num.num_of_big_int big_int in
       Num.compare_num num n2
     | (Float n1, Float n2) ->
-      polymorphic_compare (float_of_string n1) (float_of_string n2)
+      polymorphic_compare n1 n2
     | (Float _, _)
-    | (Large_big_int _, _)->
+    | (Big_int _, _)->
       -1
     | (_, Float _)
-    | (_, Large_big_int _) ->
+    | (_, Big_int _) ->
       1
 
     (* Atom *)
@@ -393,38 +380,20 @@ let rec compare t1 t2 =
     | (_, Atom _) ->
       1
 
-    (* Reference *)
-    | (New_ref r1, New_ref r2) ->
-      failwith "nyi"
-    | (New_ref _, _) ->
-      -1
-    | (_, New_ref _) ->
-      1
+    (* Reference - NYI *)
 
     (* Fun - NYI *)
 
-    (* Port *)
-    | (Port p1, Port p2) ->
-      String.compare p1 p2
-    | (Port _, _) ->
-      -1
-    | (_, Port _) ->
-      1
+    (* Port - NYI *)
 
-    (* Pid *)
-    | (Pid p1, Pid p2) ->
-      String.compare p1 p2
-    | (Pid _, _) ->
-      -1
-    | (_, Pid _) ->
-      1
+    (* Pid - NYI *)
 
     (* Tuple *)
-    | (Large_tuple t1, Large_tuple t2) ->
+    | (Tuple t1, Tuple t2) ->
       compare_seq t1 t2
-    | (Large_tuple _, _) ->
+    | (Tuple _, _) ->
       -1
-    | (_, Large_tuple _) ->
+    | (_, Tuple _) ->
       1
 
     (* Nil List *)
@@ -457,18 +426,4 @@ let rec compare t1 t2 =
     (* Should never make it this far *)
     | (_, _) ->
       failwith "Failed in Eterm.compare"
-and compare_seq s1 s2 =
-  match (s1, s2) with
-    | ([], []) ->
-      0
-    | ([], _) ->
-      -1
-    | (_, []) ->
-      1
-    | (s1::ss1, s2::ss2) ->
-      let c = compare s1 s2 in
-      if c = 0 then
-	compare_seq ss1 ss2
-      else
-	c
 

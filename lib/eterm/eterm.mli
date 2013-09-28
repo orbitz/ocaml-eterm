@@ -1,20 +1,13 @@
 type t =
-  | Small_int     of int
-  | Int           of int32
-  | Float         of string
-  | Atom          of string
-  | Ref           of (t * int32 * int)
-  | Port          of string
-  | Pid           of string
-  | Small_tuple   of t list
-  | Large_tuple   of t list
-  | String        of string
-  | List          of t list
-  | Binary        of string
-  | Small_big_int of Num.num
-  | Large_big_int of Num.num
-  | New_ref       of (t * int32 * int)
-  | Small_atom    of string
+  | Small_int of int
+  | Int       of int32
+  | Float     of float
+  | Atom      of string
+  | Tuple     of t list
+  | String    of string
+  | List      of t list
+  | Binary    of string
+  | Big_int   of Num.num
   | Nil
 
 val of_bitstring : Bitstring.bitstring -> (t option * Bitstring.bitstring)
@@ -26,6 +19,6 @@ val to_bytes     : t -> string
 val of_string    : string -> t option
 val to_string    : t -> string
 
-val to_string_pp : t -> string
+val to_string_pp : ?max_width:int -> t -> string
 
 val compare      : t -> t -> int
