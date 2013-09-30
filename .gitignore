@@ -9,3 +9,6 @@
 *.native
 *.byte
 .d
+lib/eterm/eterm_lexer.ml
+lib/eterm/eterm_parser.ml
+lib/eterm/eterm_parser.mli
