@@ -351,6 +351,19 @@ let rec compare_seq s1 s2 =
 let rec compare t1 t2 =
   match (t1, t2) with
     (* Numbers *)
+    | (Small_int n1, Small_int n2) ->
+      polymorphic_compare n1 n2
+    | (Small_int n1, Int n2) ->
+      compare (Int (Int32.of_int n1)) (Int n2)
+    | (Int n1, Small_int n2) ->
+      compare (Int n1) (Int (Int32.of_int n2))
+    | (Small_int n1, Big_int n2) ->
+      compare (Big_int (Num.num_of_int n1)) (Big_int n2)
+    | (Big_int n1, Small_int n2) ->
+      compare (Big_int n1) (Big_int (Num.num_of_int n2))
+    | (Int n1, Int n2) ->
+      Int32.compare n1 n2
+
     | (Big_int n1, Big_int n2) ->
       Num.compare_num n1 n2
     | (Big_int n1, Float n2) ->
