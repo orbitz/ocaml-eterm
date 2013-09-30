@@ -6,7 +6,7 @@ It supports reading and writing binary erlang external term format as well as er
 https://github.com/orbitz/ocaml-eterm/issues/
 * Releases
 This represents only the features that are available in tagged releases.
-** TODO 1.0.0
+** DONE 1.0.0
 *** Binary parsing
     - [X] Int
     - [X] Big int

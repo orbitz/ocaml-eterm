@@ -11,6 +11,7 @@ let seq s e =
   in
   seq' s e []
 
+(* Number tests *)
 let small_int1 = { bytes = "\131a\001"
 		 ; res   = Eterm.Small_int 1
 		 ; msg   = "(Small_int 1)"
@@ -19,19 +20,23 @@ let int1       = { bytes = "\131b\000\000\001\000"
 		 ; res   = Eterm.Int (Int32.of_int 256)
 		 ; msg   = "(Int 256)"
 		 }
+let big_int1   = { bytes = "\131n\b\000\210\n\031\235\140\169T\171"
+		 ; res   = Eterm.Big_int (Num.num_of_string "12345678901234567890")
+		 ; msg   = "(Big_int 12345678901234567890)"
+		 }
 let float1     = { bytes = "\131c1.19999999999999995559e+00\000\000\000\000\000"
 		 ; res   = Eterm.Float 1.19999999999999995559
 		 ; msg   = "(Float \"1.19999999999999995559e+00\")"
 		 }
+
+(* Atoms *)
 let atom1      = { bytes = "\131d\000\005hello"
 		 ; res   = Eterm.Atom "hello"
 		 ; msg   = "(Atom \"hello\")"
 
 		 }
-let nil1       = { bytes = "\131j"
-		 ; res   = Eterm.Nil
-		 ; msg   = "(Eterm.Nil)"
-		 }
+
+(* Tuples *)
 let smt1       = { bytes = "\131h\002a\001c2.00000000000000000000e+00\000\000\000\000\000"
 		 ; res   = Eterm.Tuple [ Eterm.Small_int 1
 				       ; Eterm.Float 2.00000000000000000000
@@ -42,10 +47,14 @@ let lgt1       = { bytes = "\131i\000\000\001\000a\001a\002a\003a\004a\005a\006a
 		 ; res   = Eterm.Tuple (List.map (fun i -> Eterm.Small_int i) (seq 1 255) @ [Eterm.Int (Int32.of_int 256)])
 		 ; msg   = "Large tuple failed"
 		 }
+
+(* Strings *)
 let string1    = { bytes = "\131k\000\005hello"
 		 ; res   = Eterm.String "hello"
 		 ; msg   = "String failed"
 		 }
+
+(* Lists *)
 let list1      = { bytes = "\131l\000\000\000\003b\000\000SIb\000\000\t\017b\000\000\001Aj"
 		 ; res   = Eterm.List [ Eterm.Int (Int32.of_int 21321)
 				      ; Eterm.Int (Int32.of_int 2321)
@@ -53,6 +62,12 @@ let list1      = { bytes = "\131l\000\000\000\003b\000\000SIb\000\000\t\017b\000
 				      ]
 		 ; msg   = "List failed"
 		 }
+let nil1       = { bytes = "\131j"
+		 ; res   = Eterm.Nil
+		 ; msg   = "(Eterm.Nil)"
+		 }
+
+(* Binary *)
 let binary1    = { bytes = "\131m\000\000\000\005hello"
 		 ; res   = Eterm.Binary "hello"
 		 ; msg   = "Binary failed"
@@ -71,6 +86,7 @@ let test_of_bytes test _ =
 let suite = "Eterm Test" >:::
   [ "Small Int"   >:: (test_of_bytes small_int1)
   ; "Int"         >:: (test_of_bytes int1)
+  ; "Big Int"     >:: (test_of_bytes big_int1)
   ; "Float"       >:: (test_of_bytes float1)
   ; "Atom"        >:: (test_of_bytes atom1)
   ; "Nil"         >:: (test_of_bytes nil1)
